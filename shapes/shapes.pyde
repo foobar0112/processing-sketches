@@ -1,4 +1,3 @@
-from random import randint
 from math import copysign
 from time import time
 
@@ -13,11 +12,11 @@ def setVerts(dx, dy, minV, maxV):
     v = [[{} for j in range(dy)] for i in range(dx)] 
     for i in range(0, dx):
         for j in range(0, dy):
-            numVert = randint(minV, maxV)
+            numVert = int(random(minV, maxV))
             for k in range(numVert):
-                v[i][j][k] = (randint(-d, d),
-                                  randint(-d, d),
-                                  randint(-d, d))
+                v[i][j][k] = (random(-d, d),
+                              random(-d, d),
+                              random(-d, d))
     return v, d
 
 def setup():
@@ -34,10 +33,10 @@ def setup():
     SHAKE_VAL, SHAKE_VAL_NORM = 0.001, 0.001
     
     # dimensions of the grid
-    DIM_X, DIM_Y = 6, 4
+    DIM_X, DIM_Y = 3, 3
     
     # value of the mean amplitude to show colors and rotate randomly
-    COLOR_THRESH = 0.3
+    COLOR_THRESH = 0.35
     
     verts, CAGE_SIZE = setVerts(DIM_X, DIM_Y, 4, 8)
     
@@ -61,9 +60,11 @@ def setup():
     
     # get systems default audio input
     INPUT = minim.getLineIn(minim.STEREO)
+    #INPUT = minim.loadFile('/home/foobar/Music/Noga Erez/Off The Radar/02 Dance While You Shoot.mp3')
 
 # monitor time, mouse is pressed
 def mousePressed():
+    #INPUT.play()
     global mouseTime, mousing
     mouseTime = time()
     mousing = True
@@ -78,18 +79,17 @@ def mouseReleased():
 
 def draw():
     global tick, SHAKE_VAL
-    tick = tick + 1
+    tick += 1
     
     clear()
     # adapt view point to mouse position
     camera(width/2.0, height/2.0, (height/2.0) / tan(PI*30.0 / 180.0) * 0.85, 
            width/2.0 + copysign(sqrt(abs(mouseX - width/2.0)), mouseX - width/2.0), 
            height/2.0 + copysign(sqrt(abs(mouseY - height/2.0)), mouseY - height/2.0), 
-           0, 
-           0, 1, 0)
+           0, 0, 1, 0)
     
     # color is changing constantly
-    hueVal = int(((sin(tick / 500.0) + 1) / 2.0) * 255)
+    hueVal = map(sin(tick/500.0), -1, 1, 0, 255) 
     
     # listen to input (system settings matter!) calc mean and max amplitude value
     amps = INPUT.mix.toArray()
@@ -97,13 +97,12 @@ def draw():
     meanAmp = max(0, mean(amps)) * 10
     
     # as long as pressed increase shaking and colorfy
-    if mousing:
-        SHAKE_VAL = SHAKE_VAL * 1.01
-        SHAKE_VAL = min(0.05, SHAKE_VAL)
+    if mousing: 
+        SHAKE_VAL = min(0.05, SHAKE_VAL * 1.01)
         meanAmp = COLOR_THRESH
     
     # choose color according to current hue and amplitude
-    stroke(hueVal, 255 * meanAmp, 150 * maxAmp + 105)
+    stroke(hueVal, map(meanAmp, 0, 1, 0, 150), map(maxAmp, 0, 1, 150, 255))
     
     # go through matrix and draw shapes
     for i in range(DIM_X):
@@ -122,16 +121,18 @@ def draw():
             
             # do random rotation around an axe if music is exploding
             if meanAmp > COLOR_THRESH:
-                strokeWeight(4)
-                r = randint(0,2)
+                strokeWeight(10)
+                stroke(hueVal, map(meanAmp, 0, 1, 120, 200), map(maxAmp, 0, 1, 150, 200))
+                tick += 50 * meanAmp
+                r = int(random(0,2))
                 if r == 0:
-                    rotateX(radians(40 * meanAmp))
+                    rotateX(-radians(40 * meanAmp))
                 elif r == 1:
-                    rotateY(radians(40 * meanAmp))
+                    rotateY(-radians(40 * meanAmp))
                 else:
-                    rotateZ(radians(40 * meanAmp))
+                    rotateZ(-radians(40 * meanAmp))
             else:
-                strokeWeight(2)
+                strokeWeight(3)
             
             # do normal rotation acording to ROTATION_SPEED
             if ROTATION_SPEED > 0:
@@ -146,14 +147,14 @@ def draw():
                        verts[i][j][k][2])
                 
                 # calculate new vertex position in x,y according shaking value, but stay in the cage
-                newX = min(CAGE_SIZE, max(-CAGE_SIZE, verts[i][j][k][0] + randint(- int(width * SHAKE_VAL), int(width * SHAKE_VAL))))
-                newY = min(CAGE_SIZE, max(-CAGE_SIZE, verts[i][j][k][1] + randint(- int(height * SHAKE_VAL), int(height * SHAKE_VAL))))
+                newX = min(CAGE_SIZE, max(-CAGE_SIZE, verts[i][j][k][0] + random(- int(width * SHAKE_VAL), int(width * SHAKE_VAL))))
+                newY = min(CAGE_SIZE, max(-CAGE_SIZE, verts[i][j][k][1] + random(- int(height * SHAKE_VAL), int(height * SHAKE_VAL))))
                 
                 verts[i][j][k] = (newX, newY, verts[i][j][k][2])
                 
-                sumX = sumX + verts[i][j][k][0]
-                sumY = sumY + verts[i][j][k][1]
-                sumZ = sumZ + verts[i][j][k][2]
+                sumX += verts[i][j][k][0]
+                sumY += verts[i][j][k][1]
+                sumZ += verts[i][j][k][2]
             endShape(CLOSE)
             popMatrix()
             
