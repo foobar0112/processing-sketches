@@ -8,26 +8,28 @@ def mean(numbers):
     return float(sum(numbers)) / max(len(numbers), 1)
 
 def setVerts(dx, dy, minV, maxV):
-    d = int(min(width / (dx * 2), height / (dy * 2)) * 0.9)
+    # set new noise seed at first
+    noiseSeed(int(time()) % (2 ** 16))
+    d = int(min(width / (dx + 1), height / (dy + 1)))
     v = [[{} for j in range(dy)] for i in range(dx)] 
     for i in range(0, dx):
         for j in range(0, dy):
             numVert = int(random(minV, maxV))
-            for k in range(numVert):
-                v[i][j][k] = (random(-d, d),
-                              random(-d, d),
-                              random(-d, d))
+            for k in range(numVert + 1):
+                v[i][j][k] = (map(noise(i, k, 0), 0, 1, -d, d),
+                              map(noise(j, k, 1), 0, 1, -d, d),
+                              map(noise(k, k, 2), 0, 1, -d, d))
     return v, d
 
 def setup():
-    global tick, verts, mousing, INPUT, CAGE_SIZE, DIM_X, DIM_Y, ROTATION_SPEED, SHAKE_VAL, SHAKE_VAL_NORM, COLOR_THRESH
+    global tick, verts, mousing, INPUT, CAGE_SIZE, DIM_X, DIM_Y, ROTATION_SPEED, SHAKE_VAL, SHAKE_VAL_NORM, EXPLOSION_TH
     
     # some helpers
     mousing = False
     tick = 0
     
-    # invers rotation speed, the grater, the slower; if 0 no rotation
-    ROTATION_SPEED = 20
+    # rotation speed, if 0 no rotation
+    ROTATION_SPEED = 0.5
     
     # shaking value (needed twice to reset after mouse action)
     SHAKE_VAL, SHAKE_VAL_NORM = 0.001, 0.001
@@ -35,10 +37,10 @@ def setup():
     # dimensions of the grid
     DIM_X, DIM_Y = 3, 3
     
-    # value of the mean amplitude to show colors and rotate randomly
-    COLOR_THRESH = 0.35
+    # value of amplitude to show colors, rotate randomly and other stuff
+    EXPLOSION_TH = 0.8
     
-    verts, CAGE_SIZE = setVerts(DIM_X, DIM_Y, 4, 8)
+    verts, CAGE_SIZE = setVerts(DIM_X, DIM_Y, 3, 3)
     
     #size(2560 / 2, 1440, P3D)
     fullScreen(P3D)
@@ -60,13 +62,11 @@ def setup():
     
     # get systems default audio input
     INPUT = minim.getLineIn(minim.STEREO)
-    #INPUT = minim.loadFile('/home/foobar/Music/Noga Erez/Off The Radar/02 Dance While You Shoot.mp3')
 
 # monitor time, mouse is pressed
 def mousePressed():
-    #INPUT.play()
-    global mouseTime, mousing
-    mouseTime = time()
+    global MOUSE_TIME, mousing
+    MOUSE_TIME = time()
     mousing = True
 
 # if released generate new shapes and reset effect values
@@ -74,14 +74,50 @@ def mouseReleased():
     global verts, CAGE_SIZE, SHAKE_VAL, mousing
     mousing = False
     SHAKE_VAL = SHAKE_VAL_NORM
-    numV = int((time() - mouseTime) * 10) + 5
+    numV = int((time() - MOUSE_TIME) * 5) + 2
     verts, CAGE_SIZE = setVerts(DIM_X, DIM_Y, max(3, min(32, numV/2)), min(64, numV))
+
+# change dimension, rotation speed, shaking value and explosion threshold on key press
+def keyPressed():
+    global DIM_X, DIM_Y, verts, CAGE_SIZE, ROTATION_SPEED, SHAKE_VAL, SHAKE_VAL_NORM, EXPLOSION_TH
+    
+    dimChanged = False
+    if(key == CODED):
+        if(keyCode == RIGHT):
+            DIM_X = min(30, DIM_X + 1)
+            dimChanged = True
+        elif(keyCode == LEFT):
+            DIM_X = max(1, DIM_X - 1)
+            dimChanged = True
+        elif(keyCode == UP):
+            DIM_Y = min(30, DIM_Y + 1)
+            dimChanged = True
+        elif(keyCode == DOWN):
+            DIM_Y = max(1, DIM_Y - 1)
+            dimChanged = True
+    elif(key.lower() == 'w'):
+        ROTATION_SPEED = min(20, ROTATION_SPEED + 0.2)
+    elif(key.lower() == 's'):
+        ROTATION_SPEED = max(0, ROTATION_SPEED - 0.2)
+    elif(key.lower() == 'd'):
+        SHAKE_VAL = min(0.05, SHAKE_VAL * 1.2)
+        SHAKE_VAL_NORM = SHAKE_VAL
+    elif(key.lower() == 'a'):
+        SHAKE_VAL = max(0.0001, SHAKE_VAL / 1.2)
+        SHAKE_VAL_NORM = SHAKE_VAL
+    elif(key.lower() == 'e'):
+        EXPLOSION_TH = min(1, EXPLOSION_TH + 0.05)
+    elif(key.lower() == 'q'):
+        EXPLOSION_TH = max(0, EXPLOSION_TH - 0.05)
+        
+    if(dimChanged):
+        verts, CAGE_SIZE = setVerts(DIM_X, DIM_Y, 3, 3)
 
 def draw():
     global tick, SHAKE_VAL
     tick += 1
+    clear()    
     
-    clear()
     # adapt view point to mouse position
     camera(width/2.0, height/2.0, (height/2.0) / tan(PI*30.0 / 180.0) * 0.85, 
            width/2.0 + copysign(sqrt(abs(mouseX - width/2.0)), mouseX - width/2.0), 
@@ -89,7 +125,7 @@ def draw():
            0, 0, 1, 0)
     
     # color is changing constantly
-    hueVal = map(sin(tick/500.0), -1, 1, 0, 255) 
+    hueVal = map(sin(tick/500.0), -1, 1, 0, 255)
     
     # listen to input (system settings matter!) calc mean and max amplitude value
     amps = INPUT.mix.toArray()
@@ -98,8 +134,14 @@ def draw():
     
     # as long as pressed increase shaking and colorfy
     if mousing: 
-        SHAKE_VAL = min(0.05, SHAKE_VAL * 1.01)
-        meanAmp = COLOR_THRESH
+        SHAKE_VAL = min(0.05, SHAKE_VAL * 1.005)
+        meanAmp = EXPLOSION_TH
+        
+        # print number of verts in bottom left corner
+        fill(100)
+        textSize(18)
+        text(min(64, max(3, int((time() - MOUSE_TIME) * 5) + 2)), width * 0.05, height * 0.95, 0)
+        noFill()
     
     # choose color according to current hue and amplitude
     stroke(hueVal, map(meanAmp, 0, 1, 0, 150), map(maxAmp, 0, 1, 150, 255))
@@ -119,10 +161,10 @@ def draw():
             # scale acording to amplitude; creates zoom effect
             scale(maxAmp * 0.6 + 0.5)
             
-            # do random rotation around an axe if music is exploding
-            if meanAmp > COLOR_THRESH:
+            # do random rotation around an axe and colorise if music is exploding
+            if maxAmp > EXPLOSION_TH:
                 strokeWeight(10)
-                stroke(hueVal, map(meanAmp, 0, 1, 120, 200), map(maxAmp, 0, 1, 150, 200))
+                stroke(hueVal, map(maxAmp, 0, 1, 120, 200), map(maxAmp, 0, 1, 150, 200))
                 tick += 50 * meanAmp
                 r = int(random(0,2))
                 if r == 0:
@@ -134,11 +176,11 @@ def draw():
             else:
                 strokeWeight(3)
             
-            # do normal rotation acording to ROTATION_SPEED
+            # do normal rotation acording to ROTATION_SPEED with different offset per shape
             if ROTATION_SPEED > 0:
-                rotateX(radians(tick) / ROTATION_SPEED)
-                rotateY(radians(tick) / ROTATION_SPEED)
-                rotateZ(radians(tick) / ROTATION_SPEED)
+                rotateX(radians(tick + verts[i][j][0][0]) / (1.0/ROTATION_SPEED))
+                rotateY(radians(tick + verts[i][j][0][0]) / (1.0/ROTATION_SPEED))
+                rotateZ(radians(tick + verts[i][j][0][0]) / (1.0/ROTATION_SPEED))
             
             beginShape()
             for k in range(len(verts[i][j]) - 1):
