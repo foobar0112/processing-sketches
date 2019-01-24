@@ -20,8 +20,10 @@ def setup():
     T = 20
     TICK = 0
     THRESH = 0.6
-    DIMX = ceil(height / (width / DIM))
-    A = [[45 + int(random(0,3))  * 90 for j in range(int(DIM * 2))] for i in range(DIMX * 2)]
+    DIMX = ceil(width / (height / DIM))
+    print(height, width)
+    print(DIMX)
+    A = [[45 + int(random(0,3)) * 90 for j in range(int(DIM * 2))] for i in range(DIMX * 3)]
 
 def diff(w, a):
     if a >= 0 and a < 45:
