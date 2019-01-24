@@ -26,7 +26,7 @@ def set_vertices(dx, dy, minV, maxV):
 
 def setup():
     global TICK, VERTICES, MOUSING, INPUT, CAGE_SIZE, DIM_X, DIM_Y, \
-        ROTATION_SPEED, SHAKE_VAL, SHAKE_VAL_NORM, EXPLOSION_TH
+        ROTATION_SPEED, SHAKE_VAL, SHAKE_VAL_NORM, EXPLOSION_TH, NUM_V
 
     # some helpers
     MOUSING = False
@@ -65,7 +65,7 @@ def setup():
            0, 1, 0)
 
     # get systems default audio input
-    INPUT = minim.getLineIn(minim.STEREO)
+    INPUT = minim.getLineIn(Minim.STEREO)
 
 
 # monitor time, mouse is pressed
@@ -77,11 +77,11 @@ def mousePressed():
 
 # if released generate new shapes and reset effect values
 def mouseReleased():
-    global VERTICES, CAGE_SIZE, SHAKE_VAL, MOUSING
+    global VERTICES, CAGE_SIZE, SHAKE_VAL, MOUSING, NUM_V
     MOUSING = False
     SHAKE_VAL = SHAKE_VAL_NORM
-    numV = int((time() - MOUSE_TIME) * 5) + 2
-    VERTICES, CAGE_SIZE = set_vertices(DIM_X, DIM_Y, max(3, min(32, int(numV / 2))), min(64, numV))
+    NUM_V = int((time() - MOUSE_TIME) * 5) + 2
+    VERTICES, CAGE_SIZE = set_vertices(DIM_X, DIM_Y, max(3, min(32, int(NUM_V / 2))), min(64, NUM_V))
 
 
 # change dimension, rotation speed, shaking value and explosion threshold on key press
@@ -118,7 +118,7 @@ def keyPressed():
         EXPLOSION_TH = max(0, EXPLOSION_TH - 0.05)
 
     if dimChanged:
-        VERTICES, CAGE_SIZE = set_vertices(DIM_X, DIM_Y, 3, 3)
+        VERTICES, CAGE_SIZE = set_vertices(DIM_X, DIM_Y, max(3, min(32, int(NUM_V / 2))), min(64, NUM_V))
 
 
 def draw():
